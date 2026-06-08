@@ -7,7 +7,12 @@ const TRACER_SOURCE = `
 import sys
 import copy
 import json
+import typing
+import collections
+import math
 from collections import deque
+
+MAX_STEPS = 2000
 
 
 class Tracer:
@@ -26,6 +31,10 @@ class Tracer:
     def trace_lines(self, frame, event, arg):
         if event == 'line':
             if frame.f_code.co_filename == '<string>':
+                if len(self.steps) >= MAX_STEPS:
+                    sys.settrace(None)
+                    return None
+
                 raw = dict(frame.f_locals)
                 current_locals = self._serialize_locals(raw)
                 lineno = frame.f_lineno
@@ -328,9 +337,12 @@ class Tracer:
     def _serialize_locals(self, locals_dict):
         clean = {}
         for k, v in locals_dict.items():
+            if k == 'self':
+                continue
             if (not k.startswith('__')
                     and not callable(v)
-                    and not isinstance(v, type)):
+                    and not isinstance(v, type)
+                    and not isinstance(v, type(sys))):
                 clean[k] = self._serialize_value(v)
         return clean
 
@@ -366,9 +378,23 @@ class Tracer:
 
 
 def run_code(code_string):
-    source_lines = code_string.split('\\n')
+    source_lines = code_string.splitlines()
     tracer = Tracer(source_lines)
+
+    # Pre-inject common LeetCode imports into namespace
     namespace = {}
+    for name in dir(typing):
+        if not name.startswith('_'):
+            try:
+                namespace[name] = getattr(typing, name)
+            except Exception:
+                pass
+    for name in ['defaultdict', 'deque', 'Counter', 'OrderedDict', 'namedtuple']:
+        if hasattr(collections, name):
+            namespace[name] = getattr(collections, name)
+    namespace['math'] = math
+    namespace['inf'] = float('inf')
+
     sys.settrace(tracer.trace_calls)
     try:
         exec(code_string, namespace)
@@ -381,6 +407,24 @@ def run_code(code_string):
         }
     finally:
         sys.settrace(None)
+
+    # Auto-detect class Solution with no steps
+    if len(tracer.steps) == 0 and 'Solution' in namespace:
+        import re
+        methods = re.findall(r'def\\s+(\\w+)\\s*\\(\\s*self', code_string)
+        methods = [m for m in methods if m != '__init__']
+        if methods:
+            hint = 'Solution().' + methods[0] + '(args)'
+            return {
+                'error': 'Found class Solution but no function call. Add a call at the bottom, e.g.: ' + hint,
+                'steps': [],
+                'source': source_lines,
+            }
+
+    step_warning = ''
+    if len(tracer.steps) >= MAX_STEPS:
+        step_warning = ' (truncated at ' + str(MAX_STEPS) + ' steps)'
+
     return {'error': None, 'steps': tracer.steps, 'source': source_lines}
 `;
 

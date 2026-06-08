@@ -143,8 +143,44 @@ twoSum([2, 7, 11, 15], 9)</textarea>
             btn.disabled = false;
             btn.querySelector('span:last-child').textContent = 'Run Trace';
 
+            // Handle errors — but still show partial steps if available
+            if (result && result.error) {
+                if (result.steps && result.steps.length > 0) {
+                    // Partial trace: show the steps that ran before the crash
+                    document.getElementById('title-status').textContent = `${result.steps.length} steps (error)`;
+                    document.getElementById('narration-text').style.color = '';
+
+                    document.getElementById('code-input').classList.add('hidden');
+                    document.getElementById('code-display-container').classList.remove('hidden');
+                    document.getElementById('btn-run').classList.add('hidden');
+                    document.getElementById('btn-edit').classList.remove('hidden');
+
+                    const codeDisplay = document.getElementById('code-display');
+                    codeDisplay.textContent = code;
+                    Prism.highlightElement(codeDisplay);
+
+                    const lines = code.replace(/\r\n/g, '\n').split('\n');
+                    const lnContainer = document.getElementById('line-numbers');
+                    lnContainer.innerHTML = lines.map((_, i) =>
+                        `<span class="ln" data-ln="${i + 1}">${i + 1}</span>`
+                    ).join('');
+
+                    document.getElementById('timeline-bar').classList.remove('disabled');
+                    Stepper.init(result.steps, result.source);
+                    Stepper.play();
+                } else {
+                    // Pure error, no steps at all
+                    document.getElementById('title-status').textContent = 'error';
+                    const narration = document.getElementById('narration-text');
+                    narration.textContent = 'Error: ' + result.error;
+                    narration.style.color = 'var(--red)';
+                }
+                return;
+            }
+
             if (result && result.steps && result.steps.length > 0) {
                 document.getElementById('title-status').textContent = `${result.steps.length} steps`;
+                document.getElementById('narration-text').style.color = ''; // Reset color
 
                 document.getElementById('code-input').classList.add('hidden');
                 document.getElementById('code-display-container').classList.remove('hidden');
@@ -157,8 +193,8 @@ twoSum([2, 7, 11, 15], 9)</textarea>
                 codeDisplay.textContent = code;
                 Prism.highlightElement(codeDisplay);
 
-                // Generate line numbers
-                const lines = code.split('\n');
+                // Generate line numbers (normalize CRLF)
+                const lines = code.replace(/\r\n/g, '\n').split('\n');
                 const lnContainer = document.getElementById('line-numbers');
                 lnContainer.innerHTML = lines.map((_, i) =>
                     `<span class="ln" data-ln="${i + 1}">${i + 1}</span>`
@@ -169,8 +205,9 @@ twoSum([2, 7, 11, 15], 9)</textarea>
                 Stepper.play();
             } else {
                 document.getElementById('title-status').textContent = 'no steps';
-                document.getElementById('narration-text').textContent =
-                    'No steps captured. Make sure the function is called at the bottom of the code.';
+                const narration = document.getElementById('narration-text');
+                narration.textContent = 'No steps captured. Make sure the function is called at the bottom of the code.';
+                narration.style.color = '';
             }
         });
 
@@ -189,7 +226,11 @@ twoSum([2, 7, 11, 15], 9)</textarea>
             document.getElementById('timeline-bar').classList.add('disabled');
             document.getElementById('title-status').textContent = 'editing';
             document.getElementById('narration-text').textContent = 'Ready. Paste code and run trace.';
-            document.getElementById('canvas').innerHTML = ''; // Clear graph
+            document.getElementById('narration-text').style.color = '';
+            // Clear SVG children but preserve the svg element (renderer will re-create defs)
+            const svg = document.getElementById('canvas');
+            while (svg.firstChild) svg.removeChild(svg.firstChild);
+            Renderer.svg = null; // Force re-init on next render
             document.getElementById('var-list').innerHTML = ''; // Clear variables
             document.getElementById('step-counter').textContent = '0 / 0';
         });

@@ -22,13 +22,7 @@ const Renderer = {
         'windowStart','windowEnd','result_start','result_end',
     ]),
 
-    init() {
-        const area = document.querySelector('.canvas-area');
-        this.width = area.clientWidth;
-        this.height = area.clientHeight;
-        this.svg = d3.select('#canvas');
-
-        // Arrow markers
+    _createDefs() {
         const defs = this.svg.append('defs');
 
         // Colored pointer arrows (for arrays)
@@ -59,6 +53,15 @@ const Renderer = {
             .attr('markerWidth', 7).attr('markerHeight', 7)
             .attr('orient', 'auto')
             .append('path').attr('d', 'M0,-3.5L8,0L0,3.5Z').attr('fill', '#4b8fef');
+    },
+
+    init() {
+        const area = document.querySelector('.canvas-area');
+        this.width = area.clientWidth;
+        this.height = area.clientHeight;
+        this.svg = d3.select('#canvas');
+
+        this._createDefs();
 
         window.addEventListener('resize', () => this._updateSize());
     },
@@ -93,6 +96,15 @@ const Renderer = {
     render(step, prevStep) {
         if (!this.svg) this.init();
         this._updateSize();
+
+        // Reset pointer colors each trace session
+        this.ptrColorMap = {};
+        this.colorIdx = 0;
+
+        // Ensure defs exist (they may have been cleared by Edit button)
+        if (this.svg.select('defs').empty()) {
+            this._createDefs();
+        }
 
         const structs = step.structures || [];
 
@@ -173,9 +185,15 @@ const Renderer = {
         }
     },
 
-    _treeDepth(node) {
+    _treeDepth(node, visited) {
         if (!node) return 0;
-        return 1 + Math.max(this._treeDepth(node.left), this._treeDepth(node.right));
+        if (!visited) visited = new Set();
+        if (visited.has(node.id)) return 0;
+        visited.add(node.id);
+        return 1 + Math.max(
+            this._treeDepth(node.left, visited),
+            this._treeDepth(node.right, visited)
+        );
     },
 
     /* ═══════════════════════════════════════════════════════
@@ -570,9 +588,10 @@ const Renderer = {
     _renderFallback(locals) {
         if (!locals) return;
         const keys = Object.keys(locals).filter(k => !k.startsWith('__'));
+        const fallbackH = Math.max(this.height, 200);
         if (keys.length === 0) {
             this.svg.append('text')
-                .attr('x', this.width / 2).attr('y', this.height / 2)
+                .attr('x', this.width / 2).attr('y', fallbackH / 2)
                 .attr('text-anchor', 'middle')
                 .attr('font-family', 'Inter, sans-serif')
                 .attr('font-size', '12px').attr('fill', '#4b5563')
