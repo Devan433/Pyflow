@@ -146,9 +146,9 @@ twoSum([2, 7, 11, 15], 9)</textarea>
             // Handle errors — but still show partial steps if available
             if (result && result.error) {
                 if (result.error === 'MissingCall') {
-                    const args = prompt(`We detected a LeetCode class, but no function call.\\n\\nPlease enter the test case arguments for Solution().${result.method}(...)\\n\\nExample: [1,2,3], 2`);
+                    const args = prompt(`We detected a LeetCode class, but no function call.\n\nPlease enter the test case arguments for Solution().${result.method}(...)\n\nExample: [1,2,3], 2`);
                     if (args !== null && args.trim() !== '') {
-                        const newCode = code + `\\n\\nSolution().${result.method}(${args})`;
+                        const newCode = code + `\n\nSolution().${result.method}(${args})`;
                         document.getElementById('code-input').value = newCode;
                         document.getElementById('btn-run').click();
                     } else {
