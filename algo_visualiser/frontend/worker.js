@@ -408,18 +408,20 @@ def run_code(code_string):
     finally:
         sys.settrace(None)
 
-    # Auto-detect class Solution with no steps
-    if len(tracer.steps) == 0 and 'Solution' in namespace:
-        import re
-        methods = re.findall(r'def\\s+(\\w+)\\s*\\(\\s*self', code_string)
-        methods = [m for m in methods if m != '__init__']
-        if methods:
-            hint = 'Solution().' + methods[0] + '(args)'
-            return {
-                'error': 'Found class Solution but no function call. Add a call at the bottom, e.g.: ' + hint,
-                'steps': [],
-                'source': source_lines,
-            }
+    # Auto-detect class Solution with no instantiation
+    if 'Solution' in namespace:
+        has_call = any('Solution(' in line for line in source_lines)
+        if not has_call:
+            import re
+            methods = re.findall(r'def\\s+(\\w+)\\s*\\(\\s*self', code_string)
+            methods = [m for m in methods if m != '__init__']
+            if methods:
+                hint = 'Solution().' + methods[0] + '(args)'
+                return {
+                    'error': 'Found class Solution but no function call. Add a call at the bottom, e.g.: ' + hint,
+                    'steps': [],
+                    'source': source_lines,
+                }
 
     step_warning = ''
     if len(tracer.steps) >= MAX_STEPS:
