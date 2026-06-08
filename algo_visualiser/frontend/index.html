@@ -51,8 +51,12 @@ twoSum([2, 7, 11, 15], 9)</textarea>
                 </div>
             </div>
 
-            <!-- Run -->
-            <div class="action-bar">
+            <!-- Run & Edit -->
+            <div class="action-bar" style="display: flex; gap: 8px;">
+                <button id="btn-edit" class="btn-edit hidden">
+                    <span class="icon">✎</span>
+                    <span>Edit Code</span>
+                </button>
                 <button id="btn-run" class="btn-run" disabled>
                     <span class="icon">▶</span>
                     <span>Loading Python…</span>
@@ -144,6 +148,10 @@ twoSum([2, 7, 11, 15], 9)</textarea>
 
                 document.getElementById('code-input').classList.add('hidden');
                 document.getElementById('code-display-container').classList.remove('hidden');
+                
+                // Swap buttons
+                document.getElementById('btn-run').classList.add('hidden');
+                document.getElementById('btn-edit').classList.remove('hidden');
 
                 const codeDisplay = document.getElementById('code-display');
                 codeDisplay.textContent = code;
@@ -164,6 +172,26 @@ twoSum([2, 7, 11, 15], 9)</textarea>
                 document.getElementById('narration-text').textContent =
                     'No steps captured. Make sure the function is called at the bottom of the code.';
             }
+        });
+
+        // Edit Code Button
+        document.getElementById('btn-edit').addEventListener('click', () => {
+            // Swap editor back
+            document.getElementById('code-display-container').classList.add('hidden');
+            document.getElementById('code-input').classList.remove('hidden');
+            
+            // Swap buttons back
+            document.getElementById('btn-edit').classList.add('hidden');
+            document.getElementById('btn-run').classList.remove('hidden');
+            
+            // Reset UI state
+            if (Stepper.isPlaying) Stepper.pause();
+            document.getElementById('timeline-bar').classList.add('disabled');
+            document.getElementById('title-status').textContent = 'editing';
+            document.getElementById('narration-text').textContent = 'Ready. Paste code and run trace.';
+            document.getElementById('canvas').innerHTML = ''; // Clear graph
+            document.getElementById('var-list').innerHTML = ''; // Clear variables
+            document.getElementById('step-counter').textContent = '0 / 0';
         });
     </script>
 </body>
