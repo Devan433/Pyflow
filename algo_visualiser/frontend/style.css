@@ -705,22 +705,30 @@ body, html {
    RESPONSIVE DESIGN (MOBILE)
    ═══════════════════════════════════════════ */
 @media (max-width: 768px) {
+    body, html {
+        height: auto;
+        overflow: auto; /* Allow scrolling on mobile */
+    }
+
     .app-shell {
         display: flex;
         flex-direction: column;
-        height: 100vh;
-        overflow: hidden;
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+        padding-bottom: 90px; /* Space for the sticky timeline */
     }
 
     .sidebar {
         border-right: none;
         border-bottom: 1px solid var(--border);
         flex: 0 0 auto;
-        max-height: 45vh;
+        max-height: none; /* Let editor and variables show fully */
     }
 
     .main-area {
         flex: 1;
+        min-height: 350px; /* Ensure canvas has enough height */
     }
 
     /* Wrap variables so they don't force horizontal scroll */
@@ -729,6 +737,12 @@ body, html {
     }
 
     .timeline {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
         height: auto;
         min-height: 60px;
         padding: var(--sp-2) var(--sp-3);
