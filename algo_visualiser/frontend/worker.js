@@ -419,9 +419,16 @@ def run_code(code_string):
     if 'Solution' in namespace:
         has_call = any('Solution(' in line for line in source_lines)
         if not has_call:
-            import re
-            methods = re.findall(r'def\\s+(\\w+)\\s*\\(\\s*self', code_string)
-            methods = [m for m in methods if m != '__init__']
+            # Find method names by simple string parsing (no regex needed)
+            methods = []
+            for line in source_lines:
+                stripped = line.strip()
+                if stripped.startswith('def ') and 'self' in stripped:
+                    parts = stripped[4:].split('(')
+                    if parts:
+                        method_name = parts[0].strip()
+                        if method_name != '__init__':
+                            methods.append(method_name)
             if methods:
                 return {
                     'error': 'MissingCall',
@@ -434,7 +441,7 @@ def run_code(code_string):
     if len(tracer.steps) >= MAX_STEPS:
         step_warning = ' (truncated at ' + str(MAX_STEPS) + ' steps)'
 
-    return {'error': None, 'steps': tracer.steps, 'source': source_lines}
+    return {'error': step_warning if step_warning else None, 'steps': tracer.steps, 'source': source_lines}
 `;
 
 let pyodide = null;
@@ -473,7 +480,7 @@ async function runTrace(code) {
         const resultJson = pyodide.runPython(`
 import json
 result = run_code(__user_code__)
-json.dumps(result)
+json.dumps(result, default=str)
         `);
         const data = JSON.parse(resultJson);
         self.postMessage({ type: 'result', data });

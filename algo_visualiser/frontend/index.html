@@ -65,11 +65,11 @@ twoSum([2, 7, 11, 15], 9)</textarea>
                 </div>
                 
                 <!-- Test Case Input (Hidden by default) -->
-                <div id="test-case-bar" class="hidden" style="display: flex; flex-direction: column; gap: 6px; background: #1c1f28; padding: 10px; border-radius: 6px; border: 1px solid #2a2d37;">
-                    <span style="font-size: 11px; color: #9ca3af;" id="test-case-hint">Missing call</span>
-                    <div style="display: flex; gap: 6px;">
-                        <input type="text" id="test-case-input" placeholder="e.g. [1,2,3], 2" style="flex: 1; background: #0f1115; border: 1px solid #2a2d37; color: #d1d5db; padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; outline: none;">
-                        <button id="btn-run-test" class="btn-run" style="width: auto; padding: 0 14px;">Run</button>
+                <div id="test-case-bar" class="test-case-bar hidden">
+                    <span class="test-case-hint" id="test-case-hint">Missing call</span>
+                    <div class="test-case-row">
+                        <input type="text" id="test-case-input" class="test-case-input" placeholder="e.g. [1,2,3], 2">
+                        <button id="btn-run-test" class="btn-run btn-run-test">Run</button>
                     </div>
                 </div>
             </div>
@@ -158,13 +158,17 @@ twoSum([2, 7, 11, 15], 9)</textarea>
             if (result && result.error) {
                 if (result.error === 'MissingCall') {
                     document.getElementById('test-case-bar').classList.remove('hidden');
-                    document.getElementById('test-case-hint').textContent = `Please enter arguments for Solution().${result.method}(...)`;
+                    document.getElementById('test-case-hint').textContent = `Enter arguments for Solution().${result.method}(...)`;
                     document.getElementById('test-case-hint').dataset.method = result.method;
+                    document.getElementById('test-case-input').value = '';
                     document.getElementById('test-case-input').focus();
+                    
+                    // Hide the main Run button to avoid confusion
+                    document.getElementById('btn-run').classList.add('hidden');
                     
                     document.getElementById('title-status').textContent = 'waiting';
                     const narration = document.getElementById('narration-text');
-                    narration.textContent = 'LeetCode class detected. Please provide test case arguments below.';
+                    narration.textContent = 'LeetCode class detected. Enter test case arguments below.';
                     narration.style.color = '#fb923c';
                     return;
                 }
@@ -252,24 +256,45 @@ twoSum([2, 7, 11, 15], 9)</textarea>
             document.getElementById('title-status').textContent = 'editing';
             document.getElementById('narration-text').textContent = 'Ready. Paste code and run trace.';
             document.getElementById('narration-text').style.color = '';
-            // Clear SVG children but preserve the svg element (renderer will re-create defs)
+            // Clear SVG children (renderer will re-create defs on next render)
             const svg = document.getElementById('canvas');
             while (svg.firstChild) svg.removeChild(svg.firstChild);
-            Renderer.svg = null; // Force re-init on next render
-            document.getElementById('var-list').innerHTML = ''; // Clear variables
+            // Only null out svg if not already null (prevents duplicate resize listeners)
+            if (Renderer.svg) {
+                Renderer.svg = null;
+            }
+            document.getElementById('var-list').innerHTML = '';
             document.getElementById('step-counter').textContent = '0 / 0';
         });
 
         // Test Case Run Button
-        document.getElementById('btn-run-test').addEventListener('click', () => {
+        function submitTestCase() {
             const args = document.getElementById('test-case-input').value;
             if (args.trim() !== '') {
-                const code = document.getElementById('code-input').value;
+                let code = document.getElementById('code-input').value;
                 const method = document.getElementById('test-case-hint').dataset.method;
+                
+                // Strip any previously appended Solution() calls to avoid duplicates
+                const lines = code.split('\n');
+                const cleanLines = lines.filter(line => !line.trim().startsWith('Solution('));
+                code = cleanLines.join('\n').replace(/\n+$/, '');
+                
                 const newCode = code + `\n\nSolution().${method}(${args})`;
                 document.getElementById('code-input').value = newCode;
                 document.getElementById('test-case-bar').classList.add('hidden');
+                document.getElementById('btn-run').classList.remove('hidden');
+                document.getElementById('narration-text').style.color = '';
                 document.getElementById('btn-run').click();
+            }
+        }
+
+        document.getElementById('btn-run-test').addEventListener('click', submitTestCase);
+
+        // Enter key submits test case
+        document.getElementById('test-case-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitTestCase();
             }
         });
     </script>

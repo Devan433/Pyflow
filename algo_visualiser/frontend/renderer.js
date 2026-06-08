@@ -63,7 +63,12 @@ const Renderer = {
 
         this._createDefs();
 
-        window.addEventListener('resize', () => this._updateSize());
+        // Remove previous listener to prevent leaks on re-init
+        if (this._resizeHandler) {
+            window.removeEventListener('resize', this._resizeHandler);
+        }
+        this._resizeHandler = () => this._updateSize();
+        window.addEventListener('resize', this._resizeHandler);
     },
 
     _updateSize() {

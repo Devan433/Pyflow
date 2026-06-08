@@ -357,6 +357,49 @@ body, html {
 .btn-edit:active { background: var(--bg-input); }
 .btn-edit .icon { font-size: 11px; }
 
+/* ─── Test Case Bar ─── */
+.test-case-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--bg-surface);
+    padding: 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+.test-case-hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.test-case-row {
+    display: flex;
+    gap: 6px;
+}
+
+.test-case-input {
+    flex: 1;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 120ms ease;
+}
+
+.test-case-input:focus {
+    border-color: var(--border-focus);
+}
+
+.btn-run-test {
+    width: auto !important;
+    padding: 0 14px !important;
+}
+
 /* ─── Variables Panel ─── */
 .variables-panel {
     flex-shrink: 0;
