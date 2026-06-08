@@ -52,15 +52,26 @@ twoSum([2, 7, 11, 15], 9)</textarea>
             </div>
 
             <!-- Run & Edit -->
-            <div class="action-bar" style="display: flex; gap: 8px;">
-                <button id="btn-edit" class="btn-edit hidden">
-                    <span class="icon">✎</span>
-                    <span>Edit Code</span>
-                </button>
-                <button id="btn-run" class="btn-run" disabled>
-                    <span class="icon">▶</span>
-                    <span>Loading Python…</span>
-                </button>
+            <div class="action-bar" style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; gap: 8px;">
+                    <button id="btn-edit" class="btn-edit hidden">
+                        <span class="icon">✎</span>
+                        <span>Edit Code</span>
+                    </button>
+                    <button id="btn-run" class="btn-run" disabled>
+                        <span class="icon">▶</span>
+                        <span>Loading Python…</span>
+                    </button>
+                </div>
+                
+                <!-- Test Case Input (Hidden by default) -->
+                <div id="test-case-bar" class="hidden" style="display: flex; flex-direction: column; gap: 6px; background: #1c1f28; padding: 10px; border-radius: 6px; border: 1px solid #2a2d37;">
+                    <span style="font-size: 11px; color: #9ca3af;" id="test-case-hint">Missing call</span>
+                    <div style="display: flex; gap: 6px;">
+                        <input type="text" id="test-case-input" placeholder="e.g. [1,2,3], 2" style="flex: 1; background: #0f1115; border: 1px solid #2a2d37; color: #d1d5db; padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; outline: none;">
+                        <button id="btn-run-test" class="btn-run" style="width: auto; padding: 0 14px;">Run</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Variables -->
@@ -146,17 +157,15 @@ twoSum([2, 7, 11, 15], 9)</textarea>
             // Handle errors — but still show partial steps if available
             if (result && result.error) {
                 if (result.error === 'MissingCall') {
-                    const args = prompt(`We detected a LeetCode class, but no function call.\n\nPlease enter the test case arguments for Solution().${result.method}(...)\n\nExample: [1,2,3], 2`);
-                    if (args !== null && args.trim() !== '') {
-                        const newCode = code + `\n\nSolution().${result.method}(${args})`;
-                        document.getElementById('code-input').value = newCode;
-                        document.getElementById('btn-run').click();
-                    } else {
-                        document.getElementById('title-status').textContent = 'error';
-                        const narration = document.getElementById('narration-text');
-                        narration.textContent = 'Trace cancelled. Please add a function call at the bottom of your code.';
-                        narration.style.color = 'var(--red)';
-                    }
+                    document.getElementById('test-case-bar').classList.remove('hidden');
+                    document.getElementById('test-case-hint').textContent = `Please enter arguments for Solution().${result.method}(...)`;
+                    document.getElementById('test-case-hint').dataset.method = result.method;
+                    document.getElementById('test-case-input').focus();
+                    
+                    document.getElementById('title-status').textContent = 'waiting';
+                    const narration = document.getElementById('narration-text');
+                    narration.textContent = 'LeetCode class detected. Please provide test case arguments below.';
+                    narration.style.color = '#fb923c';
                     return;
                 }
 
@@ -231,6 +240,7 @@ twoSum([2, 7, 11, 15], 9)</textarea>
             // Swap editor back
             document.getElementById('code-display-container').classList.add('hidden');
             document.getElementById('code-input').classList.remove('hidden');
+            document.getElementById('test-case-bar').classList.add('hidden');
             
             // Swap buttons back
             document.getElementById('btn-edit').classList.add('hidden');
@@ -248,6 +258,19 @@ twoSum([2, 7, 11, 15], 9)</textarea>
             Renderer.svg = null; // Force re-init on next render
             document.getElementById('var-list').innerHTML = ''; // Clear variables
             document.getElementById('step-counter').textContent = '0 / 0';
+        });
+
+        // Test Case Run Button
+        document.getElementById('btn-run-test').addEventListener('click', () => {
+            const args = document.getElementById('test-case-input').value;
+            if (args.trim() !== '') {
+                const code = document.getElementById('code-input').value;
+                const method = document.getElementById('test-case-hint').dataset.method;
+                const newCode = code + `\n\nSolution().${method}(${args})`;
+                document.getElementById('code-input').value = newCode;
+                document.getElementById('test-case-bar').classList.add('hidden');
+                document.getElementById('btn-run').click();
+            }
         });
     </script>
 </body>
