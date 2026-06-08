@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>algo-visualizer</title>
+    <meta name="description" content="Step-through debugger and visualization tool for Python algorithms.">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-shell">
+        <!-- Title Bar -->
+        <div class="title-bar">
+            <span class="app-name">algo-visualizer</span>
+            <span class="separator">/</span>
+            <span id="title-status">ready</span>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- File Tab -->
+            <div class="file-tab-bar">
+                <div class="file-tab active">
+                    <span class="file-tab-icon">py</span>
+                    <span>solution.py</span>
+                </div>
+            </div>
+
+            <!-- Editor -->
+            <div class="editor-area">
+                <textarea id="code-input" spellcheck="false" placeholder="# Paste your Python function here...">def twoSum(nums, target):
+    left = 0
+    right = len(nums) - 1
+    while left < right:
+        current_sum = nums[left] + nums[right]
+        if current_sum == target:
+            return [left, right]
+        elif current_sum < target:
+            left += 1
+        else:
+            right -= 1
+    return []
+
+twoSum([2, 7, 11, 15], 9)</textarea>
+                <div id="code-display-container" class="hidden">
+                    <div class="code-display-wrapper">
+                        <div class="line-numbers" id="line-numbers"></div>
+                        <pre><code id="code-display" class="language-python"></code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Run -->
+            <div class="action-bar">
+                <button id="btn-run" class="btn-run" disabled>
+                    <span class="icon">▶</span>
+                    <span>Loading Python…</span>
+                </button>
+            </div>
+
+            <!-- Variables -->
+            <div class="variables-panel">
+                <div class="panel-header">
+                    <span class="label">Variables</span>
+                    <span id="change-count" class="badge" style="display:none"></span>
+                </div>
+                <div id="var-list" class="var-list"></div>
+            </div>
+        </div>
+
+        <!-- Main Area -->
+        <div class="main-area">
+            <div class="narration-strip">
+                <span class="step-label" id="narration-step">—</span>
+                <span class="explanation" id="narration-text">Ready. Paste code and run trace.</span>
+            </div>
+            <div class="canvas-area">
+                <div id="pyodide-loader" class="pyodide-loader">
+                    <div class="loader-spinner"></div>
+                    <span>Initializing Python environment…</span>
+                </div>
+                <div id="comparison-hud" class="comparison-info"></div>
+                <svg id="canvas"></svg>
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="timeline disabled" id="timeline-bar">
+            <div class="tl-controls">
+                <button class="tl-btn" id="btn-restart" title="Restart">⟲</button>
+                <button class="tl-btn" id="btn-prev" title="Previous (←)">◀</button>
+                <button class="tl-btn" id="btn-play" title="Play/Pause (Space)">▶</button>
+                <button class="tl-btn" id="btn-next" title="Next (→)">▶</button>
+            </div>
+            <div class="tl-track" id="timeline-track">
+                <div class="tl-progress" id="timeline-progress">
+                    <div class="tl-thumb"></div>
+                </div>
+            </div>
+            <div class="tl-step-info" id="step-counter">0 / 0</div>
+            <div class="tl-speed">
+                <span>speed</span>
+                <select id="speed-select">
+                    <option value="1600">0.25x</option>
+                    <option value="800">0.5x</option>
+                    <option value="500">0.75x</option>
+                    <option value="400" selected>1x</option>
+                    <option value="250">1.5x</option>
+                    <option value="200">2x</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- CDNs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+
+    <script src="api.js"></script>
+    <script src="highlighter.js"></script>
+    <script src="renderer.js"></script>
+    <script src="stepper.js"></script>
+    <script>
+        document.getElementById('speed-select').addEventListener('change', () => {
+            if (Stepper.isPlaying) { Stepper.pause(); Stepper.play(); }
+        });
+
+        document.getElementById('btn-run').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-run');
+            const code = document.getElementById('code-input').value;
+            btn.disabled = true;
+            btn.querySelector('span:last-child').textContent = 'Tracing…';
+            document.getElementById('title-status').textContent = 'tracing';
+
+            const result = await fetchTrace(code);
+
+            btn.disabled = false;
+            btn.querySelector('span:last-child').textContent = 'Run Trace';
+
+            if (result && result.steps && result.steps.length > 0) {
+                document.getElementById('title-status').textContent = `${result.steps.length} steps`;
+
+                document.getElementById('code-input').classList.add('hidden');
+                document.getElementById('code-display-container').classList.remove('hidden');
+
+                const codeDisplay = document.getElementById('code-display');
+                codeDisplay.textContent = code;
+                Prism.highlightElement(codeDisplay);
+
+                // Generate line numbers
+                const lines = code.split('\n');
+                const lnContainer = document.getElementById('line-numbers');
+                lnContainer.innerHTML = lines.map((_, i) =>
+                    `<span class="ln" data-ln="${i + 1}">${i + 1}</span>`
+                ).join('');
+
+                document.getElementById('timeline-bar').classList.remove('disabled');
+                Stepper.init(result.steps, result.source);
+                Stepper.play();
+            } else {
+                document.getElementById('title-status').textContent = 'no steps';
+                document.getElementById('narration-text').textContent =
+                    'No steps captured. Make sure the function is called at the bottom of the code.';
+            }
+        });
+    </script>
+</body>
+</html>
