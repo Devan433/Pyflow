@@ -337,8 +337,18 @@ class Tracer:
 
     def _serialize_locals(self, locals_dict):
         clean = {}
+        # Names injected by our namespace setup that should never show
+        _injected = {
+            'List', 'Dict', 'Set', 'Tuple', 'Optional', 'Union',
+            'Any', 'Callable', 'Iterable', 'Iterator', 'Generator',
+            'Sequence', 'Mapping', 'MutableMapping', 'Deque',
+            'defaultdict', 'deque', 'Counter', 'OrderedDict', 'namedtuple',
+            'math', 'inf', 'Solution',
+        }
         for k, v in locals_dict.items():
             if k == 'self':
+                continue
+            if k in _injected:
                 continue
             if (not k.startswith('__')
                     and not callable(v)
@@ -390,12 +400,15 @@ def run_code(code_string):
 
     # Pre-inject common LeetCode imports into namespace
     namespace = {}
-    for name in dir(typing):
-        if not name.startswith('_'):
-            try:
-                namespace[name] = getattr(typing, name)
-            except Exception:
-                pass
+    # Only inject commonly used typing names (not ALL of typing module)
+    _typing_names = [
+        'List', 'Dict', 'Set', 'Tuple', 'Optional', 'Union',
+        'Any', 'Callable', 'Iterable', 'Iterator', 'Generator',
+        'Sequence', 'Mapping', 'MutableMapping', 'Deque',
+    ]
+    for name in _typing_names:
+        if hasattr(typing, name):
+            namespace[name] = getattr(typing, name)
     for name in ['defaultdict', 'deque', 'Counter', 'OrderedDict', 'namedtuple']:
         if hasattr(collections, name):
             namespace[name] = getattr(collections, name)
@@ -419,7 +432,7 @@ def run_code(code_string):
     if 'Solution' in namespace:
         has_call = any('Solution(' in line for line in source_lines)
         if not has_call:
-            # Find method names by simple string parsing (no regex needed)
+            # Find method names by simple string parsing
             methods = []
             for line in source_lines:
                 stripped = line.strip()
@@ -430,9 +443,26 @@ def run_code(code_string):
                         if method_name != '__init__':
                             methods.append(method_name)
             if methods:
+                # Extract parameter info using inspect
+                params_info = []
+                try:
+                    import inspect
+                    cls = namespace['Solution']
+                    func = getattr(cls, methods[0])
+                    sig = inspect.signature(func)
+                    for p_name, param in list(sig.parameters.items())[1:]:  # skip self
+                        hint = ''
+                        if param.annotation != inspect.Parameter.empty:
+                            hint = str(param.annotation)
+                            # Clean up typing prefixes
+                            hint = hint.replace('typing.', '')
+                        params_info.append({'name': p_name, 'type': hint})
+                except Exception:
+                    pass
                 return {
                     'error': 'MissingCall',
                     'method': methods[0],
+                    'params': params_info,
                     'steps': [],
                     'source': source_lines,
                 }

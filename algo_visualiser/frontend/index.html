@@ -67,10 +67,8 @@ twoSum([2, 7, 11, 15], 9)</textarea>
                 <!-- Test Case Input (Hidden by default) -->
                 <div id="test-case-bar" class="test-case-bar hidden">
                     <span class="test-case-hint" id="test-case-hint">Missing call</span>
-                    <div class="test-case-row">
-                        <input type="text" id="test-case-input" class="test-case-input" placeholder="e.g. [1,2,3], 2">
-                        <button id="btn-run-test" class="btn-run btn-run-test">Run</button>
-                    </div>
+                    <div id="test-case-params" class="test-case-params"></div>
+                    <button id="btn-run-test" class="btn-run btn-run-test">▶ Run with these arguments</button>
                 </div>
             </div>
 
@@ -157,11 +155,71 @@ twoSum([2, 7, 11, 15], 9)</textarea>
             // Handle errors — but still show partial steps if available
             if (result && result.error) {
                 if (result.error === 'MissingCall') {
-                    document.getElementById('test-case-bar').classList.remove('hidden');
-                    document.getElementById('test-case-hint').textContent = `Enter arguments for Solution().${result.method}(...)`;
+                    const bar = document.getElementById('test-case-bar');
+                    bar.classList.remove('hidden');
+                    document.getElementById('test-case-hint').textContent = `Solution().${result.method}(...)`;
                     document.getElementById('test-case-hint').dataset.method = result.method;
-                    document.getElementById('test-case-input').value = '';
-                    document.getElementById('test-case-input').focus();
+                    
+                    // Build per-parameter inputs
+                    const paramsDiv = document.getElementById('test-case-params');
+                    paramsDiv.innerHTML = '';
+                    const params = result.params || [];
+                    if (params.length > 0) {
+                        params.forEach((p, i) => {
+                            const row = document.createElement('div');
+                            row.className = 'test-case-param-row';
+                            
+                            const label = document.createElement('label');
+                            label.className = 'test-case-label';
+                            label.textContent = p.name;
+                            if (p.type) {
+                                const typeSpan = document.createElement('span');
+                                typeSpan.className = 'test-case-type';
+                                typeSpan.textContent = p.type;
+                                label.appendChild(typeSpan);
+                            }
+                            
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.className = 'test-case-input';
+                            input.dataset.paramName = p.name;
+                            input.dataset.paramIndex = i;
+                            
+                            // Smart placeholders based on type
+                            const t = (p.type || '').toLowerCase();
+                            if (t.includes('list') && t.includes('str')) input.placeholder = '["abc","def"]';
+                            else if (t.includes('list') && t.includes('list')) input.placeholder = '[[1,2],[3,4]]';
+                            else if (t.includes('list')) input.placeholder = '[1, 2, 3]';
+                            else if (t === 'str') input.placeholder = '"hello"';
+                            else if (t === 'int') input.placeholder = '5';
+                            else if (t === 'bool') input.placeholder = 'True';
+                            else if (t.includes('optional')) input.placeholder = 'None';
+                            else input.placeholder = 'value';
+                            
+                            // Enter key on any input submits
+                            input.addEventListener('keydown', (e) => {
+                                if (e.key === 'Enter') { e.preventDefault(); submitTestCase(); }
+                            });
+                            
+                            row.appendChild(label);
+                            row.appendChild(input);
+                            paramsDiv.appendChild(row);
+                        });
+                        // Focus first input
+                        paramsDiv.querySelector('input')?.focus();
+                    } else {
+                        // Fallback: single generic input
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.className = 'test-case-input';
+                        input.placeholder = 'e.g. [1,2,3], 2';
+                        input.dataset.paramIndex = 'fallback';
+                        input.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); submitTestCase(); }
+                        });
+                        paramsDiv.appendChild(input);
+                        input.focus();
+                    }
                     
                     // Hide the main Run button to avoid confusion
                     document.getElementById('btn-run').classList.add('hidden');
@@ -269,34 +327,46 @@ twoSum([2, 7, 11, 15], 9)</textarea>
 
         // Test Case Run Button
         function submitTestCase() {
-            const args = document.getElementById('test-case-input').value;
-            if (args.trim() !== '') {
+            const method = document.getElementById('test-case-hint').dataset.method;
+            const paramsDiv = document.getElementById('test-case-params');
+            const inputs = paramsDiv.querySelectorAll('input');
+            
+            // Check if fallback mode (single input)
+            if (inputs.length === 1 && inputs[0].dataset.paramIndex === 'fallback') {
+                const args = inputs[0].value;
+                if (args.trim() === '') return;
                 let code = document.getElementById('code-input').value;
-                const method = document.getElementById('test-case-hint').dataset.method;
-                
-                // Strip any previously appended Solution() calls to avoid duplicates
                 const lines = code.split('\n');
                 const cleanLines = lines.filter(line => !line.trim().startsWith('Solution('));
                 code = cleanLines.join('\n').replace(/\n+$/, '');
-                
                 const newCode = code + `\n\nSolution().${method}(${args})`;
                 document.getElementById('code-input').value = newCode;
-                document.getElementById('test-case-bar').classList.add('hidden');
-                document.getElementById('btn-run').classList.remove('hidden');
-                document.getElementById('narration-text').style.color = '';
-                document.getElementById('btn-run').click();
+            } else {
+                // Per-parameter mode
+                const argValues = [];
+                let allFilled = true;
+                inputs.forEach(inp => {
+                    const val = inp.value.trim();
+                    if (val === '') allFilled = false;
+                    argValues.push(val);
+                });
+                if (!allFilled) return;
+                
+                let code = document.getElementById('code-input').value;
+                const lines = code.split('\n');
+                const cleanLines = lines.filter(line => !line.trim().startsWith('Solution('));
+                code = cleanLines.join('\n').replace(/\n+$/, '');
+                const newCode = code + `\n\nSolution().${method}(${argValues.join(', ')})`;
+                document.getElementById('code-input').value = newCode;
             }
+            
+            document.getElementById('test-case-bar').classList.add('hidden');
+            document.getElementById('btn-run').classList.remove('hidden');
+            document.getElementById('narration-text').style.color = '';
+            document.getElementById('btn-run').click();
         }
 
         document.getElementById('btn-run-test').addEventListener('click', submitTestCase);
-
-        // Enter key submits test case
-        document.getElementById('test-case-input').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                submitTestCase();
-            }
-        });
     </script>
 </body>
 </html>
