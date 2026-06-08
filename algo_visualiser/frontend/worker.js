@@ -423,9 +423,9 @@ def run_code(code_string):
             methods = re.findall(r'def\\s+(\\w+)\\s*\\(\\s*self', code_string)
             methods = [m for m in methods if m != '__init__']
             if methods:
-                hint = 'Solution().' + methods[0] + '(args)'
                 return {
-                    'error': 'Found class Solution but no function call. Add a call at the bottom, e.g.: ' + hint,
+                    'error': 'MissingCall',
+                    'method': methods[0],
                     'steps': [],
                     'source': source_lines,
                 }
