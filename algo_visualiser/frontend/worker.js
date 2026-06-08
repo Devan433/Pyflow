@@ -350,6 +350,12 @@ class Tracer:
         if depth > 4:
             return '...'
         if isinstance(obj, (int, float, str, bool, type(None))):
+            if isinstance(obj, float):
+                import math
+                if math.isinf(obj):
+                    return "Infinity" if obj > 0 else "-Infinity"
+                if math.isnan(obj):
+                    return "NaN"
             return obj
         elif isinstance(obj, (list, deque)):
             return [self._serialize_value(x, depth + 1) for x in list(obj)[:50]]
@@ -412,6 +418,29 @@ def run_code(code_string):
     if 'Solution' in namespace:
         has_call = any('Solution(' in line for line in source_lines)
         if not has_call:
+            cls = namespace.get('Solution')
+            if cls:
+                for name, func in cls.__dict__.items():
+                    if not name.startswith('_') and callable(func):
+                        try:
+                            import inspect
+                            sig = inspect.signature(func)
+                            dummy_args = []
+                            for p_name, param in list(sig.parameters.items())[1:]: # skip self
+                                ant = str(param.annotation).lower()
+                                if 'list' in ant and 'str' in ant: dummy_args.append('["a","b","c"]')
+                                elif 'list' in ant: dummy_args.append('[1,2,3,4,5]')
+                                elif 'str' in ant: dummy_args.append('"hello"')
+                                elif 'bool' in ant: dummy_args.append('True')
+                                else: dummy_args.append('2')
+                            
+                            hint = f'Solution().{name}({", ".join(dummy_args)})'
+                            auto_code = code_string + "\\n\\n# Auto-generated test case\\n" + hint
+                            return run_code(auto_code)
+                        except Exception:
+                            pass
+            
+            # Fallback if inspect fails
             import re
             methods = re.findall(r'def\\s+(\\w+)\\s*\\(\\s*self', code_string)
             methods = [m for m in methods if m != '__init__']
